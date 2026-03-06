@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AgenticOS Prompt</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    height: 80px; overflow: hidden;
+    background: #0f111e;
+    border-top: 1px solid rgba(99,102,241,0.2);
+    font-family: -apple-system, "Inter", system-ui, sans-serif;
+  }
+
+  #bar {
+    display: flex;
+    align-items: center;
+    height: 80px;
+    padding: 0 16px;
+    gap: 10px;
+  }
+
+  /* Status dot */
+  #dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #4b5563;
+    flex-shrink: 0;
+    transition: background 0.4s, box-shadow 0.4s;
+  }
+  #dot.ok {
+    background: #34d399;
+    box-shadow: 0 0 6px rgba(52,211,153,0.5);
+  }
+
+  /* Input wrapper */
+  #input-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  #prompt {
+    width: 100%;
+    padding: 10px 20px;
+    font-size: 15px;
+    border: 1px solid rgba(99,102,241,0.25);
+    border-radius: 9999px;
+    background: rgba(99,102,241,0.08);
+    color: #e8eaf0;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    font-family: inherit;
+  }
+  #prompt::placeholder { color: rgba(150,160,200,0.4); }
+  #prompt:focus {
+    border-color: rgba(99,102,241,0.6);
+    background: rgba(99,102,241,0.12);
+  }
+
+  /* Buttons */
+  #send, #mic {
+    height: 40px;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+
+  #send {
+    padding: 0 22px;
+    background: #6366f1;
+    color: white;
+    letter-spacing: 0.01em;
+  }
+  #send:hover  { background: #7c7ff5; }
+  #send:active { background: #4f52d8; transform: scale(0.97); }
+
+  #mic {
+    width: 40px;
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.2);
+    color: rgba(150,160,200,0.7);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  #mic:hover { background: rgba(99,102,241,0.18); color: #e8eaf0; }
+  #mic.listening { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #f87171; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <div id="dot" title="OpenClaw status"></div>
+  <div id="input-wrap">
+    <input id="prompt" type="text" placeholder="What do you want to achieve?" autocomplete="off" autofocus>
+  </div>
+  <button id="send">Send</button>
+  <button id="mic" title="Voice input">🎙</button>
+</div>
+
+<script>
+const dot   = document.getElementById("dot");
+const input = document.getElementById("prompt");
+const mic   = document.getElementById("mic");
+let ws = null;
+let seqId = 1;
+
+function connect() {
+  ws = new WebSocket("ws://127.0.0.1:18790");
+  ws.onmessage = (ev) => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return; }
+    if (msg.type === "bridge.status") {
+      dot.className = msg.status === "connected" ? "ok" : "";
+      dot.title = "OpenClaw: " + msg.status;
+    }
+  };
+  ws.onopen  = () => { dot.title = "bridge: connected"; };
+  ws.onclose = () => { dot.className = ""; setTimeout(connect, 3000); };
+  ws.onerror = () => { dot.className = ""; };
+}
+
+function sendPrompt() {
+  const text = input.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+  const id = "msg-" + Date.now() + "-" + (seqId++);
+  ws.send(JSON.stringify({
+    type:   "req",
+    id:     id,
+    method: "chat.send",
+    params: {
+      sessionKey:     "main",
+      message:        text,
+      deliver:        false,
+      idempotencyKey: id,
+    }
+  }));
+  input.value = "";
+  input.focus();
+}
+
+document.getElementById("send").onclick = sendPrompt;
+input.addEventListener("keypress", e => { if (e.key === "Enter") sendPrompt(); });
+
+mic.onclick = () => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert("Voice not supported in this browser."); return; }
+  const r = new SR();
+  r.lang = "en-US";
+  r.interimResults = false;
+  mic.className = "listening";
+  r.onresult = e => { input.value = e.results[0][0].transcript; input.focus(); mic.className = ""; };
+  r.onerror  = e => { console.warn("Speech error:", e.error); mic.className = ""; };
+  r.onend    = () => { mic.className = ""; };
+  r.start();
+};
+
+connect();
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AgenticOS — Agents Zone</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #0a0e1a; overflow: hidden; }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  #waiting {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 20px; color: rgba(160,165,200,0.4);
+    font-family: system-ui, sans-serif;
+  }
+  #waiting svg { opacity: 0.25; }
+  #waiting p { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+  #_status {
+    position: fixed; top: 14px; right: 18px;
+    font-size: 11px; color: rgba(160,165,200,0.5);
+    font-family: system-ui, sans-serif;
+    letter-spacing: 0.06em;
+  }
+</style>
+</head>
+<body>
+<div id="_status"></div>
+<div id="waiting">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="24" cy="24" r="20" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 4"/>
+    <circle cx="24" cy="24" r="6" fill="#6366f1" opacity="0.5"/>
+  </svg>
+  <p>Agents Zone</p>
+</div>
+<script>
+(function(){
+  var ws;
+  function connect() {
+    ws = new WebSocket('ws://127.0.0.1:18790');
+    ws.onmessage = function(e) {
+      try {
+        var m = JSON.parse(e.data);
+        if (m.type === 'reload') { location.reload(); return; }
+        if (m.type === 'bridge.status') {
+          var el = document.getElementById('_status');
+          if (el) el.textContent = m.status === 'connected' ? '' : m.status;
+        }
+        if (m.type === 'event' && m.event === 'agent' && m.payload) {
+          var p = m.payload;
+          var el = document.getElementById('_status');
+          if (el && p.stream === 'lifecycle') {
+            el.textContent = p.data && p.data.phase === 'start' ? 'thinking…' : '';
+          }
+        }
+      } catch(e) {}
+    };
+    ws.onclose = function() { setTimeout(connect, 2000); };
+  }
+  connect();
+})();
+</script>
+</body>
+</html>

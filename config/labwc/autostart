@@ -1,0 +1,39 @@
+#!/bin/sh
+# AgenticOS autostart — launched by labwc on Wayland session start
+
+sleep 3
+pulseaudio --start 2>/dev/null || true
+
+# Start local HTTP server for UI files
+pkill -f "http.server 8080" 2>/dev/null || true
+cd ~/.openclaw/ui-custom && python3 -m http.server 8080 2>/dev/null &
+
+# Start the AgenticOS bridge (authenticates with OpenClaw, exposes port 18790)
+pkill -f "openclaw-bridge" 2>/dev/null || true
+export PATH="$HOME/.npm-global/bin:$PATH"
+cd ~/.openclaw/bridge && node openclaw-bridge.js >> /tmp/bridge.log 2>&1 &
+
+sleep 4
+
+# Common Chromium flags for VM (software rendering, no decorations)
+CR_FLAGS="--ozone-platform=wayland --no-sandbox --disable-web-security --allow-running-insecure-content --no-first-run --disable-infobars --disable-gpu --disable-software-rasterizer --use-gl=swiftshader"
+
+# Big blue Agents Communication Zone (upper 720px of 1280x800 screen)
+chromium-browser \
+  --kiosk \
+  --app=http://127.0.0.1:8080/agents-only.html \
+  --window-size=1280,720 \
+  --user-data-dir=/tmp/chromium-agents \
+  $CR_FLAGS \
+  2>/dev/null &
+
+sleep 2
+
+# Prompt Bar (bottom 80px: y=720 on 1280x800 screen, no window decorations)
+chromium-browser \
+  --app=http://127.0.0.1:8080/prompt-only.html \
+  --window-size=1280,80 \
+  --window-position=0,720 \
+  --user-data-dir=/tmp/chromium-prompt \
+  $CR_FLAGS \
+  2>/dev/null &

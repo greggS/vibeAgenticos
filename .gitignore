@@ -1,0 +1,15 @@
+# Large files
+*.iso
+
+# Screenshots / temp
+*.png
+*.jpg
+*.jpeg
+*.rtf
+
+# Node
+node_modules/
+npm-debug.log
+
+# OS
+.DS_Store
