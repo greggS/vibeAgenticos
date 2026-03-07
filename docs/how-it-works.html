@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgenticOS — How It Works</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2035;
+    --border: rgba(99,102,241,0.18);
+    --indigo: #6366f1;
+    --indigo-light: #818cf8;
+    --text: #e8eaf0;
+    --muted: #9da0b8;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --pink: #f472b6;
+    --code-bg: rgba(99,102,241,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Inter", system-ui, sans-serif;
+    font-size: 16px; line-height: 1.75;
+  }
+
+  /* Grid background */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.035) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Layout */
+  .page { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 60px 40px 100px; }
+
+  /* Header */
+  .hero { text-align: center; padding: 60px 0 80px; }
+  .hero-badge {
+    display: inline-block; font-size: 11px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--indigo-light);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 5px 14px; margin-bottom: 28px;
+  }
+  .hero h1 {
+    font-size: 3.2em; font-weight: 800; line-height: 1.1;
+    background: linear-gradient(135deg, #fff 0%, var(--indigo-light) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 16px;
+  }
+  .hero p { font-size: 1.15em; color: var(--muted); max-width: 560px; margin: 0 auto; }
+
+  /* Nav */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,14,26,0.85); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; gap: 4px; padding: 12px 40px;
+    flex-wrap: wrap;
+  }
+  nav a {
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 6px 12px; border-radius: 6px; transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  nav a:hover { color: var(--text); background: var(--surface2); }
+
+  /* Sections */
+  section { margin-bottom: 72px; }
+  h2 {
+    font-size: 1.7em; font-weight: 700; color: #fff;
+    margin-bottom: 24px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  h2 .icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  h3 { font-size: 1.1em; font-weight: 600; color: var(--indigo-light); margin: 28px 0 10px; }
+  p { color: #c7cae0; margin-bottom: 14px; }
+
+  /* Diagram */
+  .diagram {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 32px; margin: 28px 0;
+    overflow-x: auto;
+  }
+  .flow {
+    display: flex; align-items: center; gap: 0;
+    flex-wrap: nowrap; min-width: 600px;
+  }
+  .flow-node {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 18px; text-align: center;
+    min-width: 120px; flex-shrink: 0;
+  }
+  .flow-node .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .flow-node .name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .flow-node .port { font-size: 11px; color: var(--indigo-light); margin-top: 3px; font-family: monospace; }
+  .flow-arrow {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 0 4px; min-width: 60px;
+  }
+  .flow-arrow .line {
+    width: 100%; height: 1px; background: var(--border);
+    position: relative; margin-bottom: 4px;
+  }
+  .flow-arrow .line::after {
+    content: "▶"; position: absolute; right: -6px; top: -8px;
+    color: var(--indigo); font-size: 12px;
+  }
+  .flow-arrow .desc { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.3; }
+
+  .flow-node.highlight { border-color: var(--indigo); background: rgba(99,102,241,0.1); }
+  .flow-node.highlight .name { color: var(--indigo-light); }
+
+  /* Code blocks */
+  pre {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 24px; overflow-x: auto;
+    margin: 16px 0; font-size: 13px; line-height: 1.65;
+  }
+  code { font-family: "SF Mono", "Fira Code", monospace; }
+  p code, li code {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px; font-size: 0.87em;
+    color: var(--indigo-light);
+  }
+  .comment { color: #4b5563; }
+  .kw { color: #c084fc; }
+  .str { color: #86efac; }
+  .fn { color: #93c5fd; }
+  .num { color: #fb923c; }
+
+  /* Info cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 24px 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 22px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .card-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .card p { font-size: 13px; color: var(--muted); margin: 0; }
+
+  /* Step list */
+  .steps { list-style: none; counter-reset: steps; margin: 20px 0; }
+  .steps li {
+    counter-increment: steps;
+    display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start;
+  }
+  .steps li::before {
+    content: counter(steps);
+    min-width: 28px; height: 28px; border-radius: 8px;
+    background: rgba(99,102,241,0.15); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--indigo-light);
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .steps li p { margin: 0; color: #c7cae0; font-size: 15px; }
+
+  /* Pill tags */
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+  .tag {
+    font-size: 12px; padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .tag.green { border-color: rgba(52,211,153,0.3); color: var(--green); background: rgba(52,211,153,0.06); }
+  .tag.yellow { border-color: rgba(251,191,36,0.3); color: var(--yellow); background: rgba(251,191,36,0.06); }
+  .tag.pink { border-color: rgba(244,114,182,0.3); color: var(--pink); background: rgba(244,114,182,0.06); }
+  .tag.indigo { border-color: var(--border); color: var(--indigo-light); background: rgba(99,102,241,0.08); }
+
+  /* File tree */
+  .tree {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 24px; font-family: monospace;
+    font-size: 13px; line-height: 2; margin: 16px 0;
+  }
+  .tree .dir { color: var(--indigo-light); }
+  .tree .file { color: var(--text); }
+  .tree .note { color: var(--muted); font-size: 11px; }
+
+  /* Screen layout viz */
+  .screen-viz {
+    background: #000; border: 2px solid var(--border); border-radius: 12px;
+    overflow: hidden; margin: 24px 0; font-size: 13px;
+  }
+  .screen-agents {
+    background: var(--surface); height: 160px;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .screen-agents .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .screen-agents .size { color: var(--indigo-light); font-family: monospace; font-size: 12px; }
+  .screen-prompt {
+    background: var(--surface2); height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px;
+  }
+  .screen-prompt .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .screen-prompt .size { color: var(--yellow); font-family: monospace; font-size: 12px; }
+
+  /* Warning / note box */
+  .note-box {
+    border-radius: 10px; padding: 16px 20px; margin: 20px 0;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .note-box.info { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); }
+  .note-box.warn { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.2); }
+  .note-box .icon { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+  .note-box p { margin: 0; font-size: 14px; color: var(--muted); }
+  .note-box p strong { color: var(--text); }
+
+  footer {
+    text-align: center; color: var(--muted); font-size: 13px;
+    padding-top: 40px; border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#screen">Screen Layout</a>
+  <a href="#pipeline">Data Pipeline</a>
+  <a href="#bridge">Bridge</a>
+  <a href="#ui">UI Files</a>
+  <a href="#agent">Agent Instructions</a>
+  <a href="#startup">Startup</a>
+  <a href="#files">File Map</a>
+</nav>
+
+<div class="page">
+
+  <div class="hero">
+    <div class="hero-badge">v1 — March 2026</div>
+    <h1>AgenticOS</h1>
+    <p>An AI-first Linux desktop where every response from the agent is a fully designed website replacing the entire screen.</p>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <h2><span class="icon">🧠</span>What Is AgenticOS?</h2>
+    <p>AgenticOS replaces the traditional desktop (icons, taskbar, file manager) with two elements: a fullscreen <strong>Agents Zone</strong> that the AI designs on each response, and a minimal <strong>Prompt Bar</strong> where the user types.</p>
+    <p>The AI agent doesn't output chat bubbles — it outputs raw HTML pages. Each response becomes a custom interface: dashboard, animation, diagram, game, or anything else it imagines. The screen updates live as new responses arrive.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-title"><span class="card-dot" style="background:#6366f1"></span>Wayland Desktop</div>
+        <p>labwc compositor on Ubuntu 24.04 ARM64 (VirtualBox VM on M2 Mac). Screen is 1280×800px.</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-dot" style="background:#34d399"></span>OpenClaw Gateway</div>
+        <p>Self-hosted AI agent runtime. Connects to Grok AI. Exposes a WebSocket API on port 18789.</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-dot" style="background:#fbbf24"></span>Node.js Bridge</div>
+        <p>Authenticates with OpenClaw, extracts HTML from final responses, writes the UI file, triggers reload.</p>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="card-dot" style="background:#f472b6"></span>Chromium × 2</div>
+        <p>Two separate Chromium windows: agents zone (720px kiosk) and prompt bar (80px, always on top).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN LAYOUT -->
+  <section id="screen">
+    <h2><span class="icon">🖥️</span>Screen Layout</h2>
+    <p>The 1280×800 screen is divided into two zones. labwc window rules enforce decoration removal and always-on-top for the prompt bar.</p>
+
+    <div class="screen-viz">
+      <div class="screen-agents">
+        <div class="label">Agents Communication Zone</div>
+        <div class="size">1280 × 720px &nbsp;·&nbsp; y=0 &nbsp;·&nbsp; kiosk mode</div>
+        <div style="color:#4b5563;font-size:12px;margin-top:4px;">Agent-designed HTML page, reloads on each response</div>
+      </div>
+      <div class="screen-prompt">
+        <div class="label">Prompt Bar</div>
+        <div class="size">1280 × 80px &nbsp;·&nbsp; y=720 &nbsp;·&nbsp; always on top &nbsp;·&nbsp; no decorations</div>
+      </div>
+    </div>
+
+    <h3>labwc Window Rules</h3>
+    <p>Defined in <code>~/.config/labwc/rc.xml</code>, matched by window title:</p>
+    <pre><code><span class="comment">&lt;!-- Agents zone: no title bar --&gt;</span>
+&lt;windowRule title=<span class="str">"AgenticOS — Agents Zone"</span>&gt;
+  &lt;action name=<span class="str">"SetDecorations"</span> decorations=<span class="str">"none"</span>/&gt;
+&lt;/windowRule&gt;
+
+<span class="comment">&lt;!-- Prompt bar: no title bar, always on top --&gt;</span>
+&lt;windowRule title=<span class="str">"AgenticOS Prompt"</span>&gt;
+  &lt;action name=<span class="str">"SetDecorations"</span> decorations=<span class="str">"none"</span>/&gt;
+  &lt;action name=<span class="str">"AlwaysOnTop"</span>/&gt;
+&lt;/windowRule&gt;</code></pre>
+
+    <div class="note-box warn">
+      <div class="icon">⚠️</div>
+      <p><strong>VM note:</strong> Chromium requires <code>--disable-gpu --use-gl=swiftshader</code> in VirtualBox — no 3D GPU is available. Without this it crashes immediately on Wayland.</p>
+    </div>
+  </section>
+
+  <!-- DATA PIPELINE -->
+  <section id="pipeline">
+    <h2><span class="icon">⚡</span>Data Pipeline</h2>
+    <p>Every user message travels through this chain. The browser never talks directly to OpenClaw — the bridge is the single intermediary.</p>
+
+    <div class="diagram">
+      <div class="flow">
+        <div class="flow-node">
+          <div class="label">User</div>
+          <div class="name">Prompt Bar</div>
+          <div class="port">:8080/prompt-only.html</div>
+        </div>
+        <div class="flow-arrow">
+          <div class="line"></div>
+          <div class="desc">WS send<br>chat.send</div>
+        </div>
+        <div class="flow-node highlight">
+          <div class="label">Bridge</div>
+          <div class="name">openclaw-bridge.js</div>
+          <div class="port">:18790</div>
+        </div>
+        <div class="flow-arrow">
+          <div class="line"></div>
+          <div class="desc">WS forward<br>signed auth</div>
+        </div>
+        <div class="flow-node">
+          <div class="label">AI Runtime</div>
+          <div class="name">OpenClaw Gateway</div>
+          <div class="port">:18789</div>
+        </div>
+        <div class="flow-arrow">
+          <div class="line"></div>
+          <div class="desc">Grok AI<br>inference</div>
+        </div>
+        <div class="flow-node">
+          <div class="label">Model</div>
+          <div class="name">Grok 4</div>
+          <div class="port">xai/grok-4-1-fast</div>
+        </div>
+      </div>
+    </div>
+
+    <p>The return path is where the magic happens:</p>
+
+    <ol class="steps">
+      <li><p>OpenClaw streams <code>event:"agent"</code> events back through the bridge as the model generates tokens.</p></li>
+      <li><p>When generation finishes, OpenClaw emits a <code>event:"chat", payload:{state:"final"}</code> event containing the complete message.</p></li>
+      <li><p>The bridge intercepts this event, extracts any HTML/SVG from the text, and writes it to <code>~/.openclaw/ui-custom/agents-only.html</code>.</p></li>
+      <li><p>After 150ms (to ensure the file is flushed), the bridge broadcasts <code>{type:"reload"}</code> to all connected browsers.</p></li>
+      <li><p>The Agents Zone browser receives the reload signal and calls <code>location.reload()</code>, loading the freshly written HTML.</p></li>
+    </ol>
+  </section>
+
+  <!-- BRIDGE -->
+  <section id="bridge">
+    <h2><span class="icon">🔌</span>The Bridge (<code>openclaw-bridge.js</code>)</h2>
+    <p>The bridge is a Node.js process that sits between Chromium and OpenClaw. It handles two concerns: <strong>authentication</strong> (complex, OpenClaw-specific) and <strong>HTML extraction + reload</strong> (the core AgenticOS feature).</p>
+
+    <h3>Authentication Flow</h3>
+    <p>OpenClaw uses Ed25519 device signatures. The bridge:</p>
+    <ol class="steps">
+      <li><p>Connects to <code>ws://127.0.0.1:18789</code> with <code>Origin: http://127.0.0.1:18789</code>.</p></li>
+      <li><p>Receives a <code>connect.challenge</code> event with a one-time <code>nonce</code>.</p></li>
+      <li><p>Builds a signing message: <code>"v2|deviceId|openclaw-control-ui|webchat|operator|scopes|timestamp|deviceToken|nonce"</code></p></li>
+      <li><p>Signs it with the device's Ed25519 private key and sends a <code>connect</code> request.</p></li>
+      <li><p>On success, flushes any queued messages from browsers.</p></li>
+    </ol>
+
+    <h3>HTML Extraction</h3>
+    <p>When a <code>chat.final</code> event arrives, <code>handleFinalMessage()</code> extracts the text content and tries three patterns in order:</p>
+
+    <pre><code><span class="kw">function</span> <span class="fn">extractHtml</span>(text) {
+  <span class="comment">// 1. Fenced code block: ```html ... ```</span>
+  <span class="kw">let</span> m = <span class="str">/```html\s*\n([\s\S]*?)```/i</span>.exec(text);
+  <span class="kw">if</span> (m) <span class="kw">return</span> m[<span class="num">1</span>].trim();
+
+  <span class="comment">// 2. Raw HTML document: &lt;!DOCTYPE html&gt; ... &lt;/html&gt;</span>
+  m = <span class="str">/(&lt;(?:!DOCTYPE\s+html|html)\b[\s\S]*?&lt;\/html&gt;)/i</span>.exec(text);
+  <span class="kw">if</span> (m) <span class="kw">return</span> m[<span class="num">1</span>].trim();
+
+  <span class="comment">// 3. SVG block — wrapped in a dark full-screen page</span>
+  m = <span class="str">/(&lt;svg\b[\s\S]*?&lt;\/svg&gt;)/i</span>.exec(text);
+  <span class="kw">if</span> (m) <span class="kw">return</span> <span class="str">`&lt;!DOCTYPE html&gt;...${m[1]}...&lt;/html&gt;`</span>;
+
+  <span class="kw">return null</span>; <span class="comment">// falls back to styled text page</span>
+}</code></pre>
+
+    <p>If no HTML is found, the full text response is wrapped in a styled dark page with readable typography.</p>
+
+    <h3>Script Injection</h3>
+    <p>Every page written by the bridge — whether agent HTML or the fallback text page — gets a small WebSocket script injected before <code>&lt;/body&gt;</code>. This script:</p>
+    <div class="tags">
+      <span class="tag indigo">Reconnects to ws://127.0.0.1:18790 on close</span>
+      <span class="tag indigo">Calls location.reload() on {type:"reload"}</span>
+      <span class="tag indigo">Shows "thinking…" on lifecycle start events</span>
+    </div>
+
+    <h3>Charset Fix</h3>
+    <p>Agent-generated HTML often omits <code>&lt;meta charset="UTF-8"&gt;</code>, causing emojis and special characters to render as garbled Latin-1. The bridge injects the charset tag into <code>&lt;head&gt;</code> if it's missing:</p>
+    <pre><code><span class="kw">function</span> <span class="fn">ensureCharset</span>(html) {
+  <span class="kw">if</span> (<span class="str">/&lt;meta[^&gt;]+charset/i</span>.test(html)) <span class="kw">return</span> html;
+  <span class="kw">const</span> tag = <span class="str">'&lt;meta charset="UTF-8"&gt;'</span>;
+  <span class="kw">if</span> (html.includes(<span class="str">"&lt;head&gt;"</span>)) <span class="kw">return</span> html.replace(<span class="str">"&lt;head&gt;"</span>, <span class="str">"&lt;head&gt;\n"</span> + tag);
+  <span class="comment">// fallbacks for &lt;head ...&gt; and headless HTML</span>
+  ...
+}</code></pre>
+
+    <h3>Reconnect Behaviour</h3>
+    <p>If OpenClaw disconnects (restart, crash, rate limit), the bridge reconnects with exponential backoff starting at 5s, capping at 60s. Browser clients get a <code>{type:"bridge.status", status:"disconnected"}</code> message while waiting.</p>
+  </section>
+
+  <!-- UI FILES -->
+  <section id="ui">
+    <h2><span class="icon">🌐</span>UI Files</h2>
+    <p>Both UI files are served by <code>python3 -m http.server 8080</code> from <code>~/.openclaw/ui-custom/</code>. This avoids <code>file://</code> restrictions with WebSocket connections.</p>
+
+    <h3>agents-only.html — The Default State</h3>
+    <p>This file is the <em>initial</em> page loaded when the system starts. It shows a minimal waiting indicator and connects to the bridge WebSocket. Once the agent responds, <strong>this file is overwritten</strong> by the bridge with the agent's HTML, and the browser reloads into it. From that point forward, the file changes on every agent response.</p>
+
+    <div class="note-box info">
+      <div class="icon">💡</div>
+      <p><strong>Key insight:</strong> The agents zone never stays on the same HTML file twice. Each response is a completely fresh HTML document — the agent designs the entire interface from scratch each time.</p>
+    </div>
+
+    <h3>prompt-only.html — The Prompt Bar</h3>
+    <p>A persistent dark-themed input bar. Sends messages to the bridge using this format:</p>
+    <pre><code>{
+  <span class="str">"type"</span>: <span class="str">"req"</span>,
+  <span class="str">"id"</span>: <span class="str">"unique-id"</span>,
+  <span class="str">"method"</span>: <span class="str">"chat.send"</span>,
+  <span class="str">"params"</span>: {
+    <span class="str">"sessionKey"</span>: <span class="str">"main"</span>,
+    <span class="str">"message"</span>: <span class="str">"user text here"</span>,
+    <span class="str">"deliver"</span>: <span class="kw">false</span>,
+    <span class="str">"idempotencyKey"</span>: <span class="str">"unique-id"</span>
+  }
+}</code></pre>
+    <p>The bridge forwards this directly to OpenClaw's WebSocket. The prompt bar also receives <code>bridge.status</code> events and shows a connection indicator dot.</p>
+  </section>
+
+  <!-- AGENT INSTRUCTIONS -->
+  <section id="agent">
+    <h2><span class="icon">📜</span>Agent Instructions (AGENTS.md)</h2>
+    <p>OpenClaw reads <code>~/.openclaw/workspace/AGENTS.md</code> at the start of every session and injects it as system context. This is how the agent knows to output HTML instead of text.</p>
+
+    <p>Key instructions in the file:</p>
+    <div class="tags">
+      <span class="tag green">Output raw &lt;!DOCTYPE html&gt; — no code fences</span>
+      <span class="tag green">Fill 1280×720px — use the whole screen</span>
+      <span class="tag green">Dark theme: bg #0a0e1a, accent #6366f1</span>
+      <span class="tag green">Design-first: dashboards, not chat bubbles</span>
+    </div>
+
+    <pre><code><span class="comment">## OUTPUT FORMAT — NON-NEGOTIABLE</span>
+
+Every response must be raw HTML — output it directly, no code fences.
+Start with <span class="str">&lt;!DOCTYPE html&gt;</span> and end with <span class="str">&lt;/html&gt;</span>.
+
+TEMPLATE:
+<span class="str">&lt;!DOCTYPE html&gt;</span>
+<span class="str">&lt;html&gt;</span>
+<span class="str">&lt;head&gt;&lt;style&gt;</span>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:1280px; height:720px; overflow:hidden;
+       background:#0a0e1a; color:#e8eaf0; }
+<span class="str">&lt;/style&gt;&lt;/head&gt;</span>
+<span class="str">&lt;body&gt;</span>
+  <span class="comment">&lt;!-- YOUR FULL SCREEN DESIGN HERE --&gt;</span>
+<span class="str">&lt;/body&gt;&lt;/html&gt;</span></code></pre>
+
+    <div class="note-box warn">
+      <div class="icon">⚠️</div>
+      <p><strong>Why no code fences?</strong> If the agent wraps HTML in <code>```html</code> fences, the bridge still extracts it correctly — but asking the agent to output raw HTML means the model's entire output token budget goes to the interface, not wrapper text.</p>
+    </div>
+  </section>
+
+  <!-- STARTUP -->
+  <section id="startup">
+    <h2><span class="icon">🚀</span>Startup Sequence</h2>
+    <p>labwc runs <code>~/.config/labwc/autostart</code> on Wayland session start. The sequence is carefully ordered with sleeps to let each service come up before dependents start:</p>
+
+    <ol class="steps">
+      <li><p><strong>3s delay</strong> — wait for the Wayland session to fully initialize.</p></li>
+      <li><p><strong>HTTP server</strong> — <code>python3 -m http.server 8080</code> from <code>~/.openclaw/ui-custom/</code>. Serves both HTML files.</p></li>
+      <li><p><strong>Bridge</strong> — <code>node openclaw-bridge.js</code>. Starts listening on port 18790 immediately, then connects to OpenClaw asynchronously. Logs to <code>/tmp/bridge.log</code>.</p></li>
+      <li><p><strong>4s delay</strong> — give the bridge time to authenticate before Chromium loads and connects.</p></li>
+      <li><p><strong>Agents Chromium</strong> — kiosk mode, 1280×720, loads <code>agents-only.html</code>, separate user profile at <code>/tmp/chromium-agents</code>.</p></li>
+      <li><p><strong>2s delay</strong> — stagger the second Chromium launch.</p></li>
+      <li><p><strong>Prompt Chromium</strong> — 1280×80 at y=720, loads <code>prompt-only.html</code>, separate user profile at <code>/tmp/chromium-prompt</code>.</p></li>
+    </ol>
+
+    <div class="note-box info">
+      <div class="icon">💡</div>
+      <p><strong>Separate user profiles</strong> are critical. Without <code>--user-data-dir</code> set differently per window, Chromium detects a running singleton and opens the second URL as a tab inside the first kiosk window instead of a new window.</p>
+    </div>
+
+    <p>OpenClaw gateway itself (<code>openclaw gateway</code>) runs as a system service and is expected to already be up when labwc starts.</p>
+  </section>
+
+  <!-- FILE MAP -->
+  <section id="files">
+    <h2><span class="icon">📁</span>File Map</h2>
+    <p>Files split between the Mac (source of truth, git repo) and the VM (runtime). Changes are deployed to the VM with <code>scp</code> / SSH stdin copy.</p>
+
+    <h3>Mac — Git Repo (<code>~/Documents/aicoding/</code>)</h3>
+    <div class="tree">
+      <span class="dir">bridge/</span><br>
+      &nbsp;&nbsp;<span class="file">openclaw-bridge.js</span> &nbsp;<span class="note">← main bridge: auth + HTML extraction + reload</span><br>
+      <span class="dir">ui/</span><br>
+      &nbsp;&nbsp;<span class="file">agents-only.html</span> &nbsp;<span class="note">← default waiting state; overwritten by bridge each response</span><br>
+      &nbsp;&nbsp;<span class="file">prompt-only.html</span> &nbsp;<span class="note">← always-on-top prompt bar</span><br>
+      <span class="dir">config/</span><br>
+      &nbsp;&nbsp;<span class="dir">labwc/</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">autostart</span> &nbsp;<span class="note">← Wayland session startup script</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">rc.xml</span> &nbsp;<span class="note">← window rules (always-on-top, no decorations)</span><br>
+      &nbsp;&nbsp;<span class="dir">openclaw/</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">AGENTS.md</span> &nbsp;<span class="note">← agent system instructions (output raw HTML)</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">notes.md</span> &nbsp;<span class="note">← dev notes, OpenClaw protocol details</span><br>
+      <span class="dir">docs/</span><br>
+      &nbsp;&nbsp;<span class="file">how-it-works.html</span> &nbsp;<span class="note">← you are here</span>
+    </div>
+
+    <h3>VM — Runtime (<code>~/.openclaw/</code>, <code>~/.config/labwc/</code>)</h3>
+    <div class="tree">
+      <span class="dir">~/.openclaw/</span><br>
+      &nbsp;&nbsp;<span class="dir">bridge/</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">openclaw-bridge.js</span> &nbsp;<span class="note">← deployed copy of bridge</span><br>
+      &nbsp;&nbsp;<span class="dir">ui-custom/</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">agents-only.html</span> &nbsp;<span class="note">← served by HTTP server; rewritten each response</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">prompt-only.html</span> &nbsp;<span class="note">← served by HTTP server</span><br>
+      &nbsp;&nbsp;<span class="dir">workspace/</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">AGENTS.md</span> &nbsp;<span class="note">← read by OpenClaw at session start</span><br>
+      &nbsp;&nbsp;<span class="dir">identity/</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">device.json</span> &nbsp;<span class="note">← Ed25519 key pair (not in git)</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="file">device-auth.json</span> &nbsp;<span class="note">← device token (not in git)</span><br>
+      &nbsp;&nbsp;<span class="file">openclaw.json</span> &nbsp;<span class="note">← gateway config incl. auth token (not in git)</span><br>
+      <span class="dir">~/.config/labwc/</span><br>
+      &nbsp;&nbsp;<span class="file">autostart</span><br>
+      &nbsp;&nbsp;<span class="file">rc.xml</span>
+    </div>
+
+    <div class="note-box info">
+      <div class="icon">🔒</div>
+      <p>Identity files (<code>device.json</code>, <code>device-auth.json</code>, <code>openclaw.json</code>) contain private keys and tokens — they live only on the VM and are never committed to git.</p>
+    </div>
+  </section>
+
+  <footer>
+    AgenticOS v1 &nbsp;·&nbsp; March 2026 &nbsp;·&nbsp; Built with OpenClaw + labwc + Chromium
+  </footer>
+
+</div>
+</body>
+</html>
