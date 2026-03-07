@@ -11,6 +11,7 @@ const { WebSocketServer, WebSocket } = require("ws");
 const { readFileSync, writeFileSync } = require("fs");
 const { homedir } = require("os");
 const { join } = require("path");
+const { spawn } = require("child_process");
 const crypto = require("crypto");
 
 const OPENCLAW_URL = "ws://127.0.0.1:18789";
@@ -141,6 +142,11 @@ class Bridge {
       const isUp = this.upstream?.readyState === WebSocket.OPEN;
       ws.send(JSON.stringify({ type: "bridge.status", status: isUp ? "connected" : "connecting" }));
       ws.on("message", (raw) => {
+        // Intercept system commands before forwarding to OpenClaw
+        try {
+          const msg = JSON.parse(raw.toString());
+          if (msg.type === "cmd") { this.handleCmd(msg.command); return; }
+        } catch {}
         if (this.upstream?.readyState === WebSocket.OPEN) this.upstream.send(raw);
         else this.msgQueue.push(raw);
       });
@@ -149,6 +155,17 @@ class Bridge {
     });
 
     this.connect();
+  }
+
+  handleCmd(command) {
+    const scripts = {
+      "restart-gui": `${homedir()}/.openclaw/scripts/restart-gui.sh`,
+      "restart-all": `${homedir()}/.openclaw/scripts/restart-all.sh`,
+    };
+    const script = scripts[command];
+    if (!script) return;
+    console.log(`[bridge] Running command: ${command}`);
+    spawn("sh", [script], { detached: true, stdio: "ignore" }).unref();
   }
 
   broadcast(data) {

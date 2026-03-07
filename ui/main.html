@@ -221,9 +221,24 @@ function connect() {
   ws.onerror = () => { dot.className = "off"; };
 }
 
+const SYSTEM_COMMANDS = {
+  "restart gui":  "restart-gui",
+  "restart all":  "restart-all",
+};
+
 function sendPrompt() {
   const text = input.value.trim();
   if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+  // Check for system commands first
+  const cmd = SYSTEM_COMMANDS[text.toLowerCase()];
+  if (cmd) {
+    ws.send(JSON.stringify({ type: "cmd", command: cmd }));
+    input.value = "";
+    input.focus();
+    return;
+  }
+
   const id = "msg-" + Date.now() + "-" + (seqId++);
   ws.send(JSON.stringify({
     type: "req", id,
