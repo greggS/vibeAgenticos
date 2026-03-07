@@ -11,5 +11,12 @@
 node_modules/
 npm-debug.log
 
+# Other projects
+EvoGardenProto/
+aiGoL/
+
+# Claude local settings
+.claude/
+
 # OS
 .DS_Store
