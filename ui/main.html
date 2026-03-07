@@ -13,9 +13,19 @@
   }
 
   /* ── Agents iframe (top 720px) ───────────────────────────────── */
+  #agents-wrap {
+    width: 1280px; height: 720px; flex-shrink: 0; position: relative;
+  }
   #agents-frame {
     width: 1280px; height: 720px;
-    border: none; flex-shrink: 0; display: block;
+    border: none; display: block;
+  }
+  /* Gradient fade — hides content that drifts into the bottom edge */
+  #agents-wrap::after {
+    content: "";
+    position: absolute; bottom: 0; left: 0; right: 0; height: 48px;
+    background: linear-gradient(to bottom, transparent, #0a0e1a);
+    pointer-events: none;
   }
 
   /* ── Bottom area (80px total) ───────────────────────────────── */
@@ -123,7 +133,9 @@
 <body>
 
 <!-- Agents zone: iframe reloaded by bridge on each response -->
-<iframe id="agents-frame" src="agents-content.html" scrolling="no"></iframe>
+<div id="agents-wrap">
+  <iframe id="agents-frame" src="agents-content.html" scrolling="no"></iframe>
+</div>
 
 <!-- Bottom 80px: status strip + prompt bar -->
 <div id="bottom">

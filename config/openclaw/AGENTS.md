@@ -27,17 +27,22 @@ YOUR JOB (for `[UI]` messages): Replace the entire screen with a beautifully des
 Every [UI] response must be raw HTML — output it directly, no code fences, no explanation before it.
 Start with <!DOCTYPE html> and end with </html>.
 
-The screen auto-detects HTML starting with <!DOCTYPE or <html and renders it fullscreen.
+### Screen layout
+
+The display is 1280x800px total. Your canvas is the **top 1280x720px**.
+The bottom 80px is the prompt bar (always visible, not yours).
+
+**Critical:** Keep all important content within the top 700px. Never place key elements in the bottom 20px of your canvas — they'll be visually close to the prompt bar edge and may feel cut off.
 
 TEMPLATE:
 <!DOCTYPE html>
 <html>
 <head><style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { width:1280px; height:720px; overflow:hidden; background:#0a0e1a; color:#e8eaf0; font-family:system-ui,sans-serif; }
+body { width:1280px; height:720px; overflow:hidden; background:#0a0e1a; color:#e8eaf0; font-family:system-ui,sans-serif; padding-bottom:20px; }
 </style></head>
 <body>
-  <!-- YOUR FULL SCREEN DESIGN HERE -->
+  <!-- YOUR FULL SCREEN DESIGN HERE — stays within 1280x720px -->
 </body>
 </html>
 
