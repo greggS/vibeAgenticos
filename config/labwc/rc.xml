@@ -9,18 +9,26 @@
     <keybind key="Super+q">
       <action name="Close" />
     </keybind>
+    <!-- Super+T: toggle terminal (show if hidden, hide if visible) -->
+    <keybind key="Super+t">
+      <action name="Execute">
+        <command>sh ~/.openclaw/scripts/toggle-terminal.sh</command>
+      </action>
+    </keybind>
   </keyboard>
 
   <windowRules>
-    <!-- Agents zone: no decorations, fills top 720px -->
+    <!-- Agents zone: no decorations -->
     <windowRule title="AgenticOS — Agents Zone">
       <action name="SetDecorations" decorations="none"/>
     </windowRule>
 
-    <!-- Prompt bar: no decorations, always on top -->
+    <!-- Prompt bar: no decorations, always on top, pinned to bottom -->
     <windowRule title="AgenticOS Prompt">
       <action name="SetDecorations" decorations="none"/>
       <action name="AlwaysOnTop"/>
+      <action name="Move"><x>0</x><y>720</y></action>
+      <action name="Resize"><width>1280</width><height>80</height></action>
     </windowRule>
   </windowRules>
 </labwc_config>

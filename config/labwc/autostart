@@ -16,7 +16,7 @@ cd ~/.openclaw/bridge && node openclaw-bridge.js >> /tmp/bridge.log 2>&1 &
 sleep 4
 
 # Common Chromium flags for VM (software rendering, no decorations)
-CR_FLAGS="--ozone-platform=wayland --no-sandbox --disable-web-security --allow-running-insecure-content --no-first-run --disable-infobars --disable-gpu --disable-software-rasterizer --use-gl=swiftshader"
+CR_FLAGS="--ozone-platform=wayland --no-sandbox --disable-web-security --allow-running-insecure-content --no-first-run --disable-infobars --disable-gpu --use-gl=swiftshader"
 
 # Big blue Agents Communication Zone (upper 720px of 1280x800 screen)
 chromium-browser \
