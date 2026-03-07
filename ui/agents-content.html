@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Agents Zone</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #0a0e1a; overflow: hidden; }
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  #waiting {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 20px; color: rgba(160,165,200,0.35);
+    font-family: system-ui, sans-serif;
+  }
+  #waiting svg { opacity: 0.2; }
+  #waiting p { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div id="waiting">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+    <circle cx="24" cy="24" r="20" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 4"/>
+    <circle cx="24" cy="24" r="6" fill="#6366f1" opacity="0.4"/>
+  </svg>
+  <p>Agents Zone</p>
+</div>
+</body>
+</html>

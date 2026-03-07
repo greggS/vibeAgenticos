@@ -16,37 +16,7 @@ const crypto = require("crypto");
 const OPENCLAW_URL = "ws://127.0.0.1:18789";
 const BRIDGE_PORT  = 18790;
 const OPENCLAW_DIR = join(homedir(), ".openclaw");
-const UI_FILE      = join(OPENCLAW_DIR, "ui-custom", "agents-only.html");
-
-// ── Injected into every agent HTML so it can receive reload signals ────────
-const BRIDGE_SCRIPT = `
-<script>
-(function(){
-  var ws;
-  function connect() {
-    ws = new WebSocket('ws://127.0.0.1:18790');
-    ws.onmessage = function(e) {
-      try {
-        var m = JSON.parse(e.data);
-        if (m.type === 'reload') { location.reload(); return; }
-        if (m.type === 'bridge.status') {
-          var el = document.getElementById('_status');
-          if (el) el.textContent = m.status === 'connected' ? '' : m.status;
-        }
-        if (m.type === 'event' && m.event === 'agent' && m.payload) {
-          var p = m.payload;
-          var el = document.getElementById('_status');
-          if (el && p.stream === 'lifecycle') {
-            el.textContent = p.data && p.data.phase === 'start' ? 'thinking…' : '';
-          }
-        }
-      } catch(e) {}
-    };
-    ws.onclose = function() { setTimeout(connect, 2000); };
-  }
-  connect();
-})();
-</script>`;
+const UI_FILE      = join(OPENCLAW_DIR, "ui-custom", "agents-content.html");
 
 // ── HTML extraction from agent response ───────────────────────────────────
 function extractHtml(text) {
@@ -78,12 +48,6 @@ function ensureCharset(html) {
   return html.replace(/(<html[^>]*>)/i, "$1\n<head>" + tag + "</head>");
 }
 
-function injectScript(html) {
-  html = ensureCharset(html);
-  if (html.includes("</body>")) return html.replace("</body>", BRIDGE_SCRIPT + "\n</body>");
-  if (html.includes("</html>")) return html.replace("</html>", BRIDGE_SCRIPT + "\n</html>");
-  return html + BRIDGE_SCRIPT;
-}
 
 function makeTextPage(text) {
   const esc = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -186,11 +150,11 @@ class Bridge {
     let page;
 
     if (html) {
-      console.log("[bridge] HTML detected in response — writing agents-only.html");
-      page = injectScript(html);
+      console.log("[bridge] HTML detected in response — writing agents-content.html");
+      page = ensureCharset(html);
     } else {
       console.log("[bridge] Text response — writing styled text page");
-      page = injectScript(makeTextPage(text));
+      page = ensureCharset(makeTextPage(text));
     }
 
     try {

@@ -18,15 +18,8 @@
   </keyboard>
 
   <windowRules>
-    <!-- Agents zone: no server-side decorations -->
-    <windowRule title="AgenticOS — Agents Zone" serverDecoration="no">
-    </windowRule>
-
-    <!-- Prompt bar: no decorations, always on top, pinned to y=720 -->
-    <windowRule title="AgenticOS Prompt" serverDecoration="no">
-      <action name="AlwaysOnTop"/>
-      <action name="Move"><x>0</x><y>720</y></action>
-      <action name="Resize"><width>1280</width><height>80</height></action>
+    <!-- Main AgenticOS kiosk: no decorations -->
+    <windowRule title="AgenticOS" serverDecoration="no">
     </windowRule>
   </windowRules>
 </labwc_config>
