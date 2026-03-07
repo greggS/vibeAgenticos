@@ -9,7 +9,7 @@
     <keybind key="Super+q">
       <action name="Close" />
     </keybind>
-    <!-- Super+T: toggle terminal (show if hidden, hide if visible) -->
+    <!-- Super+T: toggle terminal -->
     <keybind key="Super+t">
       <action name="Execute">
         <command>sh ~/.openclaw/scripts/toggle-terminal.sh</command>
@@ -18,14 +18,12 @@
   </keyboard>
 
   <windowRules>
-    <!-- Agents zone: no decorations -->
-    <windowRule title="AgenticOS — Agents Zone">
-      <action name="SetDecorations" decorations="none"/>
+    <!-- Agents zone: no server-side decorations -->
+    <windowRule title="AgenticOS — Agents Zone" serverDecoration="no">
     </windowRule>
 
-    <!-- Prompt bar: no decorations, always on top, pinned to bottom -->
-    <windowRule title="AgenticOS Prompt">
-      <action name="SetDecorations" decorations="none"/>
+    <!-- Prompt bar: no decorations, always on top, pinned to y=720 -->
+    <windowRule title="AgenticOS Prompt" serverDecoration="no">
       <action name="AlwaysOnTop"/>
       <action name="Move"><x>0</x><y>720</y></action>
       <action name="Resize"><width>1280</width><height>80</height></action>
