@@ -19,42 +19,46 @@ const OPENCLAW_DIR = join(homedir(), ".openclaw");
 const UI_FILE      = join(OPENCLAW_DIR, "ui-custom", "agents-content.html");
 
 // ── HTML extraction from agent response ───────────────────────────────────
-function closeHtml(html) {
-  // Patch up truncated responses so the browser can still render them
-  if (!html.includes("</style>") && html.includes("<style")) html += "\n</style>";
-  if (!html.includes("</head>") && html.includes("<head"))   html += "\n</head>";
-  if (!html.includes("</body>")) html += "\n</body>";
-  if (!html.includes("</html>")) html += "\n</html>";
-  return html;
-}
-
 function extractHtml(text) {
   // 1. ```html ... ``` fence (complete)
   let m = /```html\s*\n([\s\S]*?)```/i.exec(text);
-  if (m) return m[1].trim();
+  if (m) return { html: m[1].trim(), truncated: false };
 
-  // 2. ```html fence truncated (response cut off before closing ```)
-  m = /```html\s*\n([\s\S]+)$/i.exec(text);
-  if (m) return closeHtml(m[1].trim());
-
-  // 3. Complete raw HTML document
+  // 2. Complete raw HTML document
   m = /(<(?:!DOCTYPE\s+html|html)\b[\s\S]*?<\/html>)/i.exec(text);
-  if (m) return m[1].trim();
+  if (m) return { html: m[1].trim(), truncated: false };
 
-  // 4. Truncated HTML document (no </html> — cut off mid-generation)
-  m = /(<(?:!DOCTYPE\s+html|html)\b[\s\S]+)$/i.exec(text);
-  if (m) return closeHtml(m[1].trim());
-
-  // 5. SVG block — wrap in dark page
+  // 3. SVG block — wrap in dark page
   m = /(<svg\b[\s\S]*?<\/svg>)/i.exec(text);
   if (m) {
-    return `<!DOCTYPE html><html><head><style>
+    const html = `<!DOCTYPE html><html><head><style>
 *{margin:0;padding:0}
 body{background:#0a0e1a;display:flex;align-items:center;justify-content:center;min-height:100vh}
 </style></head><body>${m[1]}</body></html>`;
+    return { html, truncated: false };
   }
 
+  // 4. Detected HTML/fence start but no closing tag — truncated response
+  const looksLikeHtml = /```html\s*\n/i.test(text) ||
+    /(<(?:!DOCTYPE\s+html|html)\b)/i.test(text);
+  if (looksLikeHtml) return { html: null, truncated: true };
+
   return null;
+}
+
+function makeErrorPage(reason) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e1a;color:#e8eaf0;font-family:system-ui,sans-serif;
+  display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px}
+.icon{font-size:40px;opacity:0.5}
+.title{font-size:18px;font-weight:600;color:#f87171}
+.reason{font-size:13px;color:rgba(200,205,220,0.5);letter-spacing:0.04em;text-transform:uppercase}
+</style></head><body>
+<div class="icon">⚠</div>
+<div class="title">Incompatible response</div>
+<div class="reason">${reason}</div>
+</body></html>`;
 }
 
 function ensureCharset(html) {
@@ -163,12 +167,15 @@ class Bridge {
 
     if (!text) return;
 
-    const html = extractHtml(text);
+    const result = extractHtml(text);
     let page;
 
-    if (html) {
-      console.log("[bridge] HTML detected in response — writing agents-content.html");
-      page = ensureCharset(html);
+    if (result && !result.truncated) {
+      console.log("[bridge] HTML detected — writing agents-content.html");
+      page = ensureCharset(result.html);
+    } else if (result && result.truncated) {
+      console.log("[bridge] Truncated HTML response — showing error page");
+      page = makeErrorPage("response was cut off before completion");
     } else {
       console.log("[bridge] Text response — writing styled text page");
       page = ensureCharset(makeTextPage(text));
