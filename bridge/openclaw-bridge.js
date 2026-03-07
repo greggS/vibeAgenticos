@@ -19,16 +19,33 @@ const OPENCLAW_DIR = join(homedir(), ".openclaw");
 const UI_FILE      = join(OPENCLAW_DIR, "ui-custom", "agents-content.html");
 
 // ── HTML extraction from agent response ───────────────────────────────────
+function closeHtml(html) {
+  // Patch up truncated responses so the browser can still render them
+  if (!html.includes("</style>") && html.includes("<style")) html += "\n</style>";
+  if (!html.includes("</head>") && html.includes("<head"))   html += "\n</head>";
+  if (!html.includes("</body>")) html += "\n</body>";
+  if (!html.includes("</html>")) html += "\n</html>";
+  return html;
+}
+
 function extractHtml(text) {
-  // 1. ```html ... ``` fence
+  // 1. ```html ... ``` fence (complete)
   let m = /```html\s*\n([\s\S]*?)```/i.exec(text);
   if (m) return m[1].trim();
 
-  // 2. Raw <!DOCTYPE html> ... </html>
+  // 2. ```html fence truncated (response cut off before closing ```)
+  m = /```html\s*\n([\s\S]+)$/i.exec(text);
+  if (m) return closeHtml(m[1].trim());
+
+  // 3. Complete raw HTML document
   m = /(<(?:!DOCTYPE\s+html|html)\b[\s\S]*?<\/html>)/i.exec(text);
   if (m) return m[1].trim();
 
-  // 3. SVG block — wrap in dark page
+  // 4. Truncated HTML document (no </html> — cut off mid-generation)
+  m = /(<(?:!DOCTYPE\s+html|html)\b[\s\S]+)$/i.exec(text);
+  if (m) return closeHtml(m[1].trim());
+
+  // 5. SVG block — wrap in dark page
   m = /(<svg\b[\s\S]*?<\/svg>)/i.exec(text);
   if (m) {
     return `<!DOCTYPE html><html><head><style>
