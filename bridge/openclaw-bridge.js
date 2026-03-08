@@ -126,11 +126,12 @@ async function buildConnectParams(creds, nonce) {
 // ── Bridge ─────────────────────────────────────────────────────────────────
 class Bridge {
   constructor() {
-    this.creds       = loadCredentials();
-    this.upstream    = null;
-    this.clients     = new Set();
-    this.msgQueue    = [];
-    this.reconnectMs = 5000;
+    this.creds           = loadCredentials();
+    this.upstream        = null;
+    this.clients         = new Set();
+    this.msgQueue        = [];
+    this.reconnectMs     = 5000;
+    this.lastStreamText  = "";   // accumulated text from agent stream events
   }
 
   start() {
@@ -176,11 +177,9 @@ class Bridge {
   }
 
   handleFinalMessage(msg) {
-    // Extract full text from final chat event
-    const content = msg.payload?.message?.content;
-    const text = Array.isArray(content)
-      ? content.filter(c => c.type === "text").map(c => c.text).join("\n")
-      : (typeof content === "string" ? content : "");
+    // Use accumulated stream text (data.text from stream events = full response)
+    const text = this.lastStreamText;
+    this.lastStreamText = "";
 
     if (!text) return;
 
@@ -237,6 +236,22 @@ class Bridge {
         this.reconnectMs = 5000;
         while (this.msgQueue.length) this.upstream.send(this.msgQueue.shift());
         return;
+      }
+
+      // Reset accumulator on new agent lifecycle start
+      if (msg.type === "event" && msg.event === "agent" &&
+          msg.payload?.stream === "lifecycle" &&
+          msg.payload?.data?.phase === "start") {
+        this.lastStreamText = "";
+      }
+
+      // Accumulate full text from streaming assistant events
+      // data.text is the full accumulated text so far (preferred over delta)
+      if (msg.type === "event" && msg.event === "agent" &&
+          msg.payload?.stream === "assistant") {
+        const d = msg.payload.data;
+        if (d?.text) this.lastStreamText = d.text;
+        else if (d?.delta) this.lastStreamText += d.delta;
       }
 
       // Final message — write HTML and reload
