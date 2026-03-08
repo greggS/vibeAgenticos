@@ -170,6 +170,8 @@ const dotsEl     = document.querySelector(".dots");
 const streamBar  = document.querySelector(".stream-bar");
 let ws = null;
 let seqId = 1;
+// Session key rotates daily to prevent context overflow
+const sessionKey = "ui-" + new Date().toISOString().slice(0, 10);
 
 function showStatus(state) {
   if (!state) { strip.classList.remove("active"); return; }
@@ -243,7 +245,7 @@ function sendPrompt() {
   ws.send(JSON.stringify({
     type: "req", id,
     method: "chat.send",
-    params: { sessionKey: "main", message: "[UI] " + text, deliver: false, idempotencyKey: id }
+    params: { sessionKey, message: "[UI] " + text, deliver: false, idempotencyKey: id }
   }));
   input.value = "";
   input.focus();

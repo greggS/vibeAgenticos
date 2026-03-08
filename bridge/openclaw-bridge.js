@@ -238,20 +238,24 @@ class Bridge {
         return;
       }
 
-      // Reset accumulator on new agent lifecycle start
-      if (msg.type === "event" && msg.event === "agent" &&
-          msg.payload?.stream === "lifecycle" &&
-          msg.payload?.data?.phase === "start") {
-        this.lastStreamText = "";
-      }
-
-      // Accumulate full text from streaming assistant events
-      // data.text is the full accumulated text so far (preferred over delta)
+      // Accumulate full text from streaming assistant events.
+      // data.text is the full accumulated text for the current run — only advance
+      // forward (longer = more complete), so sub-agent runs don't overwrite HTML.
       if (msg.type === "event" && msg.event === "agent" &&
           msg.payload?.stream === "assistant") {
         const d = msg.payload.data;
-        if (d?.text) this.lastStreamText = d.text;
-        else if (d?.delta) this.lastStreamText += d.delta;
+        if (d?.text && d.text.length > this.lastStreamText.length) {
+          this.lastStreamText = d.text;
+        } else if (d?.delta && !d?.text) {
+          this.lastStreamText += d.delta;
+        }
+      }
+
+      // Reset accumulator only when a new chat message is being processed
+      // (chat event with state="processing" or equivalent) — NOT on lifecycle
+      // start, which fires for sub-agents and tool calls too.
+      if (msg.type === "event" && msg.event === "chat" && msg.payload?.state === "processing") {
+        this.lastStreamText = "";
       }
 
       // Final message — write HTML and reload
