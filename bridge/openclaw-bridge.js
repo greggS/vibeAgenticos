@@ -140,6 +140,7 @@ class Bridge {
     this.msgQueue        = [];
     this.reconnectMs     = 5000;
     this.lastStreamText  = "";   // accumulated text from agent stream events
+    this.activeSessionKey = null; // tracked from UI chat.send messages
   }
 
   start() {
@@ -155,6 +156,10 @@ class Bridge {
         try {
           const msg = JSON.parse(raw.toString());
           if (msg.type === "cmd") { this.handleCmd(msg.command); return; }
+          // Track active session key so /prompt API can use it
+          if (msg.type === "req" && msg.method === "chat.send" && msg.params?.sessionKey) {
+            this.activeSessionKey = msg.params.sessionKey;
+          }
         } catch {}
         if (this.upstream?.readyState === WebSocket.OPEN) this.upstream.send(raw);
         else this.msgQueue.push(raw);
@@ -372,7 +377,7 @@ function startApiServer(bridge) {
     if (req.method === "POST" && path === "/prompt") {
       const { message } = await readBody(req);
       if (!message) return apiResponse(res, 400, { error: "message required" });
-      const sessionKey = "ui-" + new Date().toISOString().slice(0, 10);
+      const sessionKey = bridge.activeSessionKey || ("ui-" + Date.now());
       const id = "api-" + Date.now();
       const payload = JSON.stringify({
         type: "req", id,

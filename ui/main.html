@@ -170,8 +170,8 @@ const dotsEl     = document.querySelector(".dots");
 const streamBar  = document.querySelector(".stream-bar");
 let ws = null;
 let seqId = 1;
-// Session key rotates daily to prevent context overflow
-const sessionKey = "ui-" + new Date().toISOString().slice(0, 10);
+// Session key is unique per page load — each kiosk boot starts a fresh context
+const sessionKey = "ui-" + Date.now();
 
 function showStatus(state) {
   if (!state) { strip.classList.remove("active"); return; }
