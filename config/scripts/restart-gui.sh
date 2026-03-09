@@ -7,7 +7,7 @@ export XDG_RUNTIME_DIR=/run/user/1000
 # Kill by port/PID to avoid accidentally killing SSH session
 for pid in $(fuser 18790/tcp 2>/dev/null); do kill "$pid" 2>/dev/null; done
 for pid in $(fuser 18791/tcp 2>/dev/null); do kill "$pid" 2>/dev/null; done
-for pid in $(pgrep -f 'chromium.*kiosk' 2>/dev/null); do kill "$pid" 2>/dev/null; done
+for pid in $(pgrep -f 'chromium.*kiosk\|chrome.*kiosk' 2>/dev/null); do kill "$pid" 2>/dev/null; done
 sleep 2
 
 rm -rf /tmp/chromium-main
