@@ -18,7 +18,7 @@ rm -rf /tmp/chromium-main
 nohup node ~/.openclaw/bridge/openclaw-bridge.js > /tmp/bridge.log 2>&1 &
 sleep 3
 
-nohup chromium-browser \
+setsid nohup chromium-browser \
   --kiosk \
   --app=http://127.0.0.1:8080/main.html \
   --user-data-dir=/tmp/chromium-main \
@@ -26,4 +26,4 @@ nohup chromium-browser \
   --disable-web-security --allow-running-insecure-content \
   --no-first-run --disable-infobars \
   --disable-gpu --use-gl=swiftshader \
-  > /tmp/main-chrome.log 2>&1 &
+  > /tmp/main-chrome.log 2>&1 < /dev/null &
