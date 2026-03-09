@@ -4,18 +4,26 @@
  *
  * - Authenticates with OpenClaw gateway (port 18789)
  * - Exposes a simple WebSocket on port 18790 for the browser
- * - On each final agent response: extracts HTML, writes agents-only.html, broadcasts reload
+ * - Exposes a local HTTP API on port 18791 for agent-generated GUIs:
+ *     POST /exec    — run a shell command
+ *     GET  /file    — read a file  (?path=...)
+ *     POST /file    — write a file
+ *     POST /prompt  — send a follow-up message to the agent
+ * - On each final agent response: extracts HTML, writes agents-content.html, broadcasts reload
  */
 
 const { WebSocketServer, WebSocket } = require("ws");
 const { readFileSync, writeFileSync } = require("fs");
 const { homedir } = require("os");
 const { join } = require("path");
-const { spawn } = require("child_process");
+const { spawn, exec } = require("child_process");
 const crypto = require("crypto");
+const http = require("http");
+const { URL } = require("url");
 
 const OPENCLAW_URL = "ws://127.0.0.1:18789";
 const BRIDGE_PORT  = 18790;
+const API_PORT     = 18791;
 const OPENCLAW_DIR = join(homedir(), ".openclaw");
 const UI_FILE      = join(OPENCLAW_DIR, "ui-custom", "agents-content.html");
 
@@ -278,6 +286,116 @@ class Bridge {
   }
 }
 
+// ── Local HTTP API for agent-generated GUIs ────────────────────────────────
+function resolvePath(p) {
+  if (!p) return null;
+  return p.startsWith("~") ? join(homedir(), p.slice(1)) : p;
+}
+
+function readBody(req) {
+  return new Promise((resolve) => {
+    let body = "";
+    req.on("data", d => body += d);
+    req.on("end", () => { try { resolve(JSON.parse(body)); } catch { resolve({}); } });
+  });
+}
+
+function apiResponse(res, status, data) {
+  const body = JSON.stringify(data);
+  res.writeHead(status, {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  });
+  res.end(body);
+}
+
+function startApiServer(bridge) {
+  const server = http.createServer(async (req, res) => {
+    // CORS preflight
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      });
+      return res.end();
+    }
+
+    const url = new URL(req.url, `http://127.0.0.1:${API_PORT}`);
+    const path = url.pathname;
+
+    // POST /exec — run a shell command
+    if (req.method === "POST" && path === "/exec") {
+      const { cmd, timeout = 30000 } = await readBody(req);
+      if (!cmd) return apiResponse(res, 400, { error: "cmd required" });
+      exec(cmd, { timeout, shell: "/bin/bash", env: { ...process.env, HOME: homedir() } },
+        (err, stdout, stderr) => {
+          apiResponse(res, 200, {
+            stdout: stdout || "",
+            stderr: stderr || "",
+            exitCode: err?.code ?? 0,
+          });
+        });
+      return;
+    }
+
+    // GET /file?path=... — read a file
+    if (req.method === "GET" && path === "/file") {
+      const filePath = resolvePath(url.searchParams.get("path"));
+      if (!filePath) return apiResponse(res, 400, { error: "path required" });
+      try {
+        const content = readFileSync(filePath, "utf8");
+        apiResponse(res, 200, { content });
+      } catch (e) {
+        apiResponse(res, 404, { error: e.message });
+      }
+      return;
+    }
+
+    // POST /file — write a file
+    if (req.method === "POST" && path === "/file") {
+      const { path: filePath, content } = await readBody(req);
+      const resolved = resolvePath(filePath);
+      if (!resolved) return apiResponse(res, 400, { error: "path required" });
+      try {
+        writeFileSync(resolved, content ?? "", "utf8");
+        apiResponse(res, 200, { ok: true });
+      } catch (e) {
+        apiResponse(res, 500, { error: e.message });
+      }
+      return;
+    }
+
+    // POST /prompt — send a follow-up message to the agent
+    if (req.method === "POST" && path === "/prompt") {
+      const { message } = await readBody(req);
+      if (!message) return apiResponse(res, 400, { error: "message required" });
+      const sessionKey = "ui-" + new Date().toISOString().slice(0, 10);
+      const id = "api-" + Date.now();
+      const payload = JSON.stringify({
+        type: "req", id,
+        method: "chat.send",
+        params: { sessionKey, message: "[UI] " + message, deliver: false, idempotencyKey: id },
+      });
+      if (bridge.upstream?.readyState === WebSocket.OPEN) {
+        bridge.upstream.send(payload);
+        apiResponse(res, 200, { ok: true });
+      } else {
+        apiResponse(res, 503, { error: "not connected to OpenClaw" });
+      }
+      return;
+    }
+
+    apiResponse(res, 404, { error: "not found" });
+  });
+
+  server.listen(API_PORT, "127.0.0.1", () =>
+    console.log(`[bridge] API server on http://127.0.0.1:${API_PORT}`));
+}
+
 const bridge = new Bridge();
 bridge.start();
+startApiServer(bridge);
 console.log("[bridge] AgenticOS bridge started. UI → ws://127.0.0.1:18790");
